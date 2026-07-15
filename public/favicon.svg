@@ -1,0 +1,14 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .tile { fill: #0c0d0f; }
+    .guide { stroke: #ffffff; }
+    .check { stroke: #ffffff; }
+    @media (prefers-color-scheme: dark) {
+      .tile { fill: #f7f8fa; }
+      .guide, .check { stroke: #101114; }
+    }
+  </style>
+  <rect class="tile" x="4" y="4" width="56" height="56" rx="15"/>
+  <path class="guide" d="M22 17V47M42 17V47" stroke-width="2" stroke-linecap="round" opacity="0.18"/>
+  <path class="check" d="M18.5 32.5L27.5 41.5L46 22" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
