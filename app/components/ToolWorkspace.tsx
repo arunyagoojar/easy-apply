@@ -6,14 +6,18 @@ import { useRouter } from "next/navigation";
 import JSZip from "jszip";
 import { PDFDocument, degrees } from "pdf-lib";
 import {
+  ArrowRight,
   Check,
   CheckCircle2,
   ChevronDown,
   Crop,
   Download,
+  EyeOff,
+  FileCheck2,
   FileImage,
   FileSignature,
   Files,
+  HardDrive,
   Image as ImageIcon,
   Info,
   Lock,
@@ -36,7 +40,7 @@ import { ChangeEvent, DragEvent, PointerEvent as ReactPointerEvent, useCallback,
 import { BrandMark } from "./SiteHeader";
 import { useLanguage } from "./LanguageProvider";
 
-export type ToolKind = "passport" | "signature" | "pdf" | "image";
+export type ToolKind = "passport" | "signature" | "pdf" | "image" | "faq";
 type ImageFormat = "jpeg" | "png" | "webp" | "pdf";
 type Uploaded = { file: File; url: string; width?: number; height?: number };
 type Prepared = { blob: Blob; url: string; name: string; width?: number; height?: number };
@@ -126,6 +130,7 @@ const toolDetails = {
   signature: { title: "Signature", hiTitle: "हस्ताक्षर", description: "Crop a signature from any image, improve legibility and export it in the format and size you need.", hiDescription: "किसी भी इमेज से हस्ताक्षर क्रॉप करें और आवश्यक फ़ॉर्मेट व आकार में तैयार करें।", icon: FileSignature, accept: "image/png,image/jpeg,image/webp,image/heic" },
   pdf: { title: "PDF Toolkit", hiTitle: "PDF टूलकिट", description: "Merge, split, rotate or create PDFs locally without uploading your documents.", hiDescription: "दस्तावेज़ अपलोड किए बिना PDF को मर्ज, स्प्लिट, रोटेट या बनाएँ।", icon: Files, accept: ".pdf,image/png,image/jpeg" },
   image: { title: "Image Tools", hiTitle: "इमेज टूलकिट", description: "Resize, convert and adjust one image or a whole batch with the same output settings.", hiDescription: "एक या कई इमेज को एक ही सेटिंग से रिसाइज़, कन्वर्ट और एडजस्ट करें।", icon: ImageIcon, accept: "image/png,image/jpeg,image/webp,image/heic" },
+  faq: { title: "Privacy & FAQ", hiTitle: "गोपनीयता और FAQ", description: "Know exactly how EasyApply works.", hiDescription: "जानें कि EasyApply कैसे काम करता है।", icon: ShieldCheck, accept: "" },
 };
 
 const resolutionWidths = [100, 150, 200, 300, 400, 500, 600, 800, 1024];
@@ -611,7 +616,7 @@ function ToolWorkspaceInner({ kind }: { kind: ToolKind }) {
   };
 
   return (
-    <motion.div className="tool-app-shell" initial={{ opacity: 0, x: 42 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: .32, ease: [0.22, 1, 0.36, 1] }}>
+    <motion.div className="tool-app-shell" initial={{ opacity: 0, y: -15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .32, ease: [0.22, 1, 0.36, 1] }}>
       <header className="app-topbar">
         <button className="icon-button app-mobile-menu-button" onClick={() => setMobileMenuOpen(true)} aria-label={hi ? "टूल मेनू खोलें" : "Open tools menu"}><Menu size={20} /></button>
         <Link className="brand app-brand" href="/" aria-label="Return to EasyApply home"><BrandMark /><span>EasyApply</span></Link>
@@ -628,13 +633,69 @@ function ToolWorkspaceInner({ kind }: { kind: ToolKind }) {
             {languageOpen && <div className="language-menu app-language-menu"><button className={language === "en" ? "active" : ""} onClick={() => { setLanguage("en"); setLanguageOpen(false); }}><span>EN</span><div><b>English</b><small>English</small></div>{language === "en" && <Check size={15} />}</button><button className={language === "hi" ? "active" : ""} onClick={() => { setLanguage("hi"); setLanguageOpen(false); }}><span>हि</span><div><b>हिन्दी</b><small>Hindi</small></div>{language === "hi" && <Check size={15} />}</button></div>}
           </div>
           <button className="icon-button" onClick={toggleTheme} aria-label={hi ? dark ? "लाइट मोड पर जाएँ" : "डार्क मोड पर जाएँ" : `Switch to ${dark ? "light" : "dark"} mode`} title={hi ? dark ? "लाइट मोड" : "डार्क मोड" : dark ? "Light mode" : "Dark mode"}>{dark ? <Sun size={18} /> : <Moon size={18} />}</button>
+          <Link href="/privacy-faq" className="icon-button" aria-label={hi ? "FAQ और गोपनीयता" : "FAQ & Privacy"} title={hi ? "FAQ और गोपनीयता" : "FAQ & Privacy"}><Info size={18} /></Link>
         </div>
-        <AnimatePresence>{mobileMenuOpen && <><motion.button className="app-mobile-menu-backdrop" aria-label={hi ? "मेनू बंद करें" : "Close menu"} onClick={() => setMobileMenuOpen(false)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} /><motion.aside className="app-mobile-drawer" initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }} transition={{ duration: .24, ease: [0.22, 1, 0.36, 1] }}><div className="app-mobile-drawer-head"><Link className="brand" href="/" onClick={() => setMobileMenuOpen(false)}><BrandMark /><span>EasyApply</span></Link><button className="icon-button" onClick={() => setMobileMenuOpen(false)} aria-label={hi ? "मेनू बंद करें" : "Close menu"}><X size={19} /></button></div><div className="app-mobile-drawer-section"><small>{hi ? "टूल चुनें" : "CHOOSE A TOOL"}</small>{(["passport", "signature", "pdf", "image"] as ToolKind[]).map((item) => { const itemDetails = toolDetails[item]; const Icon = itemDetails.icon; const href = item === "passport" ? "/tools/passport-photo" : `/tools/${item}`; return <button key={item} className={kind === item ? "active" : ""} onClick={() => { setMobileMenuOpen(false); switchTool(item, href); }}><Icon size={19} /><span>{hi ? itemDetails.hiTitle : itemDetails.title}</span>{kind === item && <Check size={17} />}</button>; })}</div><div className="app-mobile-drawer-section app-mobile-preferences"><small>{hi ? "प्राथमिकताएँ" : "PREFERENCES"}</small><div className="drawer-language"><span><Languages size={18} /> {hi ? "भाषा" : "Language"}</span><div><button className={language === "en" ? "active" : ""} onClick={() => setLanguage("en")}>EN</button><button className={language === "hi" ? "active" : ""} onClick={() => setLanguage("hi")}>हिन्दी</button></div></div><button className="drawer-theme" onClick={toggleTheme}>{dark ? <Sun size={18} /> : <Moon size={18} />}<span>{hi ? dark ? "लाइट मोड" : "डार्क मोड" : dark ? "Light mode" : "Dark mode"}</span></button></div></motion.aside></>}</AnimatePresence>
+        <AnimatePresence>{mobileMenuOpen && <><motion.button className="app-mobile-menu-backdrop" aria-label={hi ? "मेनू बंद करें" : "Close menu"} onClick={() => setMobileMenuOpen(false)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} /><motion.aside className="app-mobile-drawer" initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }} transition={{ duration: .24, ease: [0.22, 1, 0.36, 1] }}><div className="app-mobile-drawer-head"><Link className="brand" href="/" onClick={() => setMobileMenuOpen(false)}><BrandMark /><span>EasyApply</span></Link><button className="icon-button" onClick={() => setMobileMenuOpen(false)} aria-label={hi ? "मेनू बंद करें" : "Close menu"}><X size={19} /></button></div><div className="app-mobile-drawer-section"><small>{hi ? "टूल चुनें" : "CHOOSE A TOOL"}</small>{(["passport", "signature", "pdf", "image"] as ToolKind[]).map((item) => { const itemDetails = toolDetails[item]; const Icon = itemDetails.icon; const href = item === "passport" ? "/tools/passport-photo" : `/tools/${item}`; return <button key={item} className={kind === item ? "active" : ""} onClick={() => { setMobileMenuOpen(false); switchTool(item, href); }}><Icon size={19} /><span>{hi ? itemDetails.hiTitle : itemDetails.title}</span>{kind === item && <Check size={17} />}</button>; })}</div><div className="app-mobile-drawer-section app-mobile-preferences"><small>{hi ? "प्राथमिकताएँ" : "PREFERENCES"}</small><div className="drawer-language"><span><Languages size={18} /> {hi ? "भाषा" : "Language"}</span><div><button className={language === "en" ? "active" : ""} onClick={() => setLanguage("en")}>EN</button><button className={language === "hi" ? "active" : ""} onClick={() => setLanguage("hi")}>हिन्दी</button></div></div><button className="drawer-theme" onClick={toggleTheme}>{dark ? <Sun size={18} /> : <Moon size={18} />}<span>{hi ? dark ? "लाइट मोड" : "डार्क मोड" : dark ? "Light mode" : "Dark mode"}</span></button><Link href="/privacy-faq" className="drawer-theme" onClick={() => setMobileMenuOpen(false)} style={{ display: "flex", gap: "10px", alignItems: "center", width: "100%", padding: "10px 14px", color: "inherit", textDecoration: "none" }}><Info size={18} /><span>{hi ? "FAQ और गोपनीयता" : "FAQ & Privacy"}</span></Link></div></motion.aside></>}</AnimatePresence>
       </header>
 
-      <motion.main key={kind} className="tool-app-main" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .24, ease: [0.22, 1, 0.36, 1] }}>
-        <div className="full-tool-workspace">
-          <section className="tool-canvas-column">
+      <motion.main key={kind} className="tool-app-main" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .24, ease: [0.22, 1, 0.36, 1] }}>
+        {kind === "faq" ? (() => {
+          const privacy = hi
+            ? [[HardDrive, "लोकल प्रोसेसिंग", "क्रॉपिंग, कम्प्रेशन और कन्वर्ज़न इसी ब्राउज़र में होते हैं।"], [EyeOff, "फ़ाइल की जाँच नहीं", "EasyApply आपकी फ़ाइलों का विश्लेषण या क्लाउड रिकॉर्ड नहीं बनाता।"], [Trash2, "कुछ भी सेव नहीं", "टैब बंद करते ही वर्तमान कार्य सत्र समाप्त हो जाता है।"]]
+            : [[HardDrive, "Processed locally", "Cropping, compression and conversion happen inside this browser."], [EyeOff, "Nothing is inspected", "EasyApply does not analyse your files or create a cloud record."], [Trash2, "Nothing is retained", "Close the tab and the current working session is gone."]];
+          const faqs = hi
+            ? [["क्या EasyApply मेरे आवेदन की आवश्यकताएँ जानता है?", "नहीं। पोर्टल पर दिए गए आयाम, फ़ॉर्मेट और आकार आप चुनते हैं।"], ["क्या मैं सटीक फ़ाइल आकार चुन सकता हूँ?", "हाँ। EasyApply चुनी हुई सीमा के करीब पहुँचने के लिए गुणवत्ता समायोजित करता है।"], ["क्या फोटो और हस्ताक्षर PDF में मिल सकते हैं?", "हाँ। आउटपुट फ़ॉर्मेट में PDF चुनें।"], ["क्या कई फ़ाइलें एक साथ प्रोसेस हो सकती हैं?", "हाँ। समान सेटिंग लागू करें और परिणाम ZIP में डाउनलोड करें।"]]
+            : [["Does EasyApply know my application requirements?", "No. You choose the dimensions, format and size shown by the application portal."], ["Can I target an exact file size?", "Yes. EasyApply adjusts quality to get close to the selected limit where possible."], ["Can I export photos and signatures as PDF?", "Yes. Choose PDF from the output-format menu."], ["Can I process several files?", "Yes. Apply the same settings and download the results together as a ZIP."]];
+          return (
+            <div className="container privacy-faq-main" style={{ padding: "40px 30px", maxWidth: "1000px", margin: "0 auto", overflowY: "auto", height: "100%" }}>
+              <div className="privacy-faq-hero" style={{ marginBottom: "40px" }}>
+                <span className="tool-icon" style={{ color: "var(--blue)" }}><ShieldCheck size={28} /></span>
+                <span className="section-kicker" style={{ display: "block", marginTop: "16px", fontSize: "14px", fontWeight: 600, color: "var(--blue)" }}>{hi ? "गोपनीयता और सामान्य प्रश्न" : "Privacy & frequently asked questions"}</span>
+                <h1 style={{ fontSize: "36px", marginTop: "8px", marginBottom: "12px", lineHeight: 1.2 }}>{hi ? "जानें कि EasyApply कैसे काम करता है।" : "Know exactly how EasyApply works."}</h1>
+                <p style={{ fontSize: "16px", color: "var(--text-secondary)", maxWidth: "540px" }}>{hi ? "आपके दस्तावेज़ आपके डिवाइस पर रहते हैं और हर आउटपुट सेटिंग आपके नियंत्रण में रहती है।" : "Your documents stay on your device, and every output setting remains under your control."}</p>
+              </div>
+              <div className="privacy-faq-grid">
+                <section style={{ backgroundColor: "var(--blue-soft)", padding: "24px", borderRadius: "16px", border: "1px solid var(--blue-soft)" }}>
+                  <h2 style={{ fontSize: "20px", marginBottom: "20px", color: "var(--blue)" }}>{hi ? "सरल भाषा में गोपनीयता" : "Privacy, in plain language"}</h2>
+                  <div className="privacy-faq-cards">
+                    {privacy.map(([Icon, title, text]) => {
+                      const ItemIcon = Icon as typeof HardDrive;
+                      return (
+                        <article key={title as string} style={{ backgroundColor: "var(--surface)", border: "none", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+                          <ItemIcon size={20} style={{ color: "var(--blue)" }} />
+                          <div>
+                            <b style={{ display: "block", marginBottom: "4px" }}>{title as string}</b>
+                            <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0 }}>{text as string}</p>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                  <div className="panel-local-note" style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "16px", padding: "16px", backgroundColor: "var(--surface)", color: "var(--blue)", borderRadius: "12px", fontSize: "13px", border: "1px solid var(--blue-soft)" }}>
+                    <Lock size={17} />
+                    <span><b>{hi ? "कोई अपलोड नहीं।" : "No upload step."}</b> {hi ? "फ़ाइलें इस डिवाइस से बाहर नहीं जातीं।" : "Your files never leave this device."}</span>
+                  </div>
+                </section>
+                <section style={{ backgroundColor: "var(--green-soft)", padding: "24px", borderRadius: "16px", border: "1px solid var(--green-soft)" }}>
+                  <h2 style={{ fontSize: "20px", marginBottom: "20px", color: "var(--green)" }}>{hi ? "सामान्य प्रश्न" : "Common questions"}</h2>
+                  <div className="privacy-faq-cards faq-cards">
+                    {faqs.map(([question, answer]) => (
+                      <article key={question} style={{ backgroundColor: "var(--surface)", border: "none", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+                        <FileCheck2 size={19} style={{ color: "var(--green)" }} />
+                        <div>
+                          <b style={{ display: "block", marginBottom: "4px" }}>{question}</b>
+                          <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0 }}>{answer}</p>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              </div>
+            </div>
+          );
+        })() : (
+          <div className="full-tool-workspace">
+            <section className="tool-canvas-column">
             <div className="panel-heading"><div><span className="tool-icon small"><ToolIcon size={18} /></span><span><h1>{displayTitle}</h1><small>{displayDescription}</small></span></div><span className="local-badge"><Lock size={13} /> {hi ? "कभी अपलोड नहीं" : "Never uploaded"}</span></div>
             <div className={`large-drop-zone ${dragging ? "dragging" : ""} ${files.length ? "has-file" : ""}`} onDragEnter={(event) => { event.preventDefault(); setDragging(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={() => setDragging(false)} onDrop={(event: DragEvent<HTMLDivElement>) => { event.preventDefault(); setDragging(false); addFiles(Array.from(event.dataTransfer.files)); }} onClick={() => !files.length && inputRef.current?.click()} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") inputRef.current?.click(); }}>
               <input ref={inputRef} type="file" accept={details.accept} multiple hidden onChange={(event: ChangeEvent<HTMLInputElement>) => { addFiles(Array.from(event.target.files ?? [])); event.target.value = ""; }} />
@@ -681,6 +742,7 @@ function ToolWorkspaceInner({ kind }: { kind: ToolKind }) {
             {message && <p className={prepared.length ? "tool-message success" : "tool-message"}>{prepared.length ? <CheckCircle2 size={16} /> : <Info size={16} />}{message}</p>}
           </aside>
         </div>
+        )}
       </motion.main>
     </motion.div>
   );
