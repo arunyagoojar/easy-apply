@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 const configuredUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
 
-export const siteUrl = new URL(configuredUrl || "http://localhost:3001");
+export const siteUrl = new URL(configuredUrl || "https://easyapply.eu.cc");
 export const siteName = "EasyApply";
 export const siteDescription = "Free browser-based tools to resize passport photos, prepare signatures, convert images and work with PDFs privately on your device.";
 

@@ -3,7 +3,6 @@ import { siteUrl } from "./lib/site";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const pages = [
-    ["/", "weekly", 1],
     ["/tools/passport-photo", "monthly", 0.9],
     ["/tools/signature", "monthly", 0.9],
     ["/tools/pdf", "monthly", 0.9],
