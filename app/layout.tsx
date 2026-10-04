@@ -1,23 +1,14 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { LanguageProvider } from "./components/LanguageProvider";
+import { ToastProvider } from "./components/ui";
+import { bootScript } from "./lib/boot-script";
 import { siteDescription, siteName, siteUrl } from "./lib/site";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   metadataBase: siteUrl,
   title: {
-    default: "EasyApply — Free Passport Photo, Signature & PDF Tools",
+    default: "EasyApply — Free Photo, Signature & PDF Tools for Online Forms",
     template: "%s | EasyApply",
   },
   description: siteDescription,
@@ -28,12 +19,13 @@ export const metadata: Metadata = {
   referrer: "origin-when-cross-origin",
   keywords: [
     "passport photo resizer",
+    "photo resize in kb",
     "signature resizer",
-    "signature compressor",
-    "PDF toolkit",
+    "compress pdf",
+    "merge pdf",
+    "sign pdf",
+    "images to pdf",
     "image compressor",
-    "application photo maker",
-    "private document tools",
   ],
   robots: {
     index: true,
@@ -41,31 +33,33 @@ export const metadata: Metadata = {
     googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 },
   },
   openGraph: {
-    title: "EasyApply — Prepare Your Documents in Seconds",
-    description: "Resize, compress and convert application documents privately in your browser.",
+    title: "EasyApply — Get your documents ready for online forms",
+    description: "Resize photos and signatures to the exact size and KB, and merge, sign or compress PDFs. Free, private, in your browser.",
     type: "website",
     siteName,
     locale: "en_IN",
     url: siteUrl,
-    images: [{ url: "/og.png", width: 1672, height: 941, alt: "EasyApply private document preparation workspace" }],
+    images: [{ url: "/og.png", width: 1672, height: 941, alt: "EasyApply document tools" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "EasyApply — Prepare Your Documents in Seconds",
-    description: "100% local document preparation with complete privacy.",
+    title: "EasyApply — Free photo, signature & PDF tools",
+    description: "Everything runs in your browser. Nothing is uploaded.",
     images: ["/og.png"],
   },
-  icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
-  },
+  icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#16161a" },
+  ],
+};
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const structuredData = {
     "@context": "https://schema.org",
     "@graph": [
@@ -88,7 +82,17 @@ export default function RootLayout({
         browserRequirements: "Requires a modern browser with JavaScript enabled",
         isAccessibleForFree: true,
         offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
-        featureList: ["Passport photo resizing", "Signature preparation", "Background removal", "PDF merge, split, rotate and page reorder", "Sign PDFs", "Edit text PDFs", "Image conversion and compression", "Local browser processing"],
+        featureList: [
+          "Passport and exam photo resizing to exact pixels, cm or mm",
+          "File size limits in KB (minimum and maximum)",
+          "Signature cleanup and resizing",
+          "Background removal on the device",
+          "Merge, split, reorder and rotate PDF pages",
+          "Compress PDFs to a size limit",
+          "Sign PDFs by drawing, typing or uploading a signature",
+          "Fill in PDFs with text, dates and ticks",
+          "Images to PDF and PDF to JPG",
+        ],
       },
     ],
   };
@@ -96,11 +100,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: `try{document.documentElement.dataset.theme=localStorage.getItem("easyapply-theme")==="light"?"light":"dark"}catch(e){document.documentElement.dataset.theme="dark"}` }} />
+        <script dangerouslySetInnerHTML={{ __html: bootScript }} />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }} />
-        <LanguageProvider>{children}</LanguageProvider>
+        <LanguageProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </LanguageProvider>
       </body>
     </html>
   );

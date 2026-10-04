@@ -1,6 +1,12 @@
-import { ToolWorkspace } from "../components/ToolWorkspace";
+import { HelpPage } from "../components/HelpPage";
 import { createPageMetadata } from "../lib/site";
 
-export const metadata = createPageMetadata({ title: "Privacy & Frequently Asked Questions", description: "Learn how EasyApply processes files locally, protects your privacy and prepares photos, signatures, images and PDFs.", path: "/privacy-faq" });
+export const metadata = createPageMetadata({
+  title: "Help & Privacy",
+  description: "How EasyApply keeps your files on your device, and answers to common questions about photo sizes, KB limits, signing and compressing PDFs.",
+  path: "/privacy-faq",
+});
 
-export default function Page() { return <ToolWorkspace kind="faq" />; }
+export default function HelpRoute() {
+  return <HelpPage />;
+}

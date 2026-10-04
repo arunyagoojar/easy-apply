@@ -49,3 +49,6 @@ next-env.d.ts
 
 # local test evidence
 /gui-test-screenshots/
+
+# pdf.js runtime assets (copied from node_modules by scripts/copy-pdfjs-assets.mjs)
+/public/pdfjs/

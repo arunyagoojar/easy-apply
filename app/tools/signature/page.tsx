@@ -1,4 +1,12 @@
-import { ToolWorkspace } from "../../components/ToolWorkspace";
+import { ImageWorkspace } from "../../components/image/ImageWorkspace";
 import { createPageMetadata } from "../../lib/site";
-export const metadata = createPageMetadata({ title: "Free Signature Resizer & Compressor", description: "Trim, resize, compress and convert signature images for online applications. Export as JPEG, PNG, WebP or PDF privately.", path: "/tools/signature" });
-export default function SignaturePage() { return <ToolWorkspace kind="signature" />; }
+
+export const metadata = createPageMetadata({
+  title: "Free Signature Resizer — Crop, Clean & Compress Signatures to KB",
+  description: "Crop your signature from a photo, make the paper white and the ink clear, then resize it to the pixels and KB your form needs. Free and private.",
+  path: "/tools/signature",
+});
+
+export default function SignaturePage() {
+  return <ImageWorkspace initialMode="signature" />;
+}

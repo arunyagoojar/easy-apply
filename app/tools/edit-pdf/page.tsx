@@ -1,8 +1,12 @@
-import { ToolWorkspace } from "../../components/ToolWorkspace";
+import { PdfWorkspace } from "../../components/pdf/PdfWorkspace";
 import { createPageMetadata } from "../../lib/site";
 
-export const metadata = createPageMetadata({ title: "Free PDF Text Editor — Cover & Retype", description: "Edit simple text PDFs in your browser: cover anything, retype names, dates and fixes, then download. Free, private and processed locally.", path: "/tools/edit-pdf" });
+export const metadata = createPageMetadata({
+  title: "Free PDF Editor — Fill In, Add Text, Dates & Ticks",
+  description: "Fill in PDF forms: add text, dates, ticks and crosses, cover mistakes with white-out and place images. Free, private and processed in your browser.",
+  path: "/tools/edit-pdf",
+});
 
 export default function EditPdfPage() {
-  return <ToolWorkspace kind="edit" />;
+  return <PdfWorkspace intent="edit" />;
 }

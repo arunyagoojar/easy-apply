@@ -1,19 +1,20 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
+import { LANGUAGE_KEY, THEME_KEY } from "./boot-script";
 
 const THEME_EVENT = "easyapply-theme-change";
 const LANGUAGE_EVENT = "easyapply-language-change";
 
-type Theme = "dark" | "light";
+export type Theme = "dark" | "light";
 export type Language = "en" | "hi";
 
-function readStored(key: string) {
+export function readStored(key: string) {
   try { return localStorage.getItem(key); } catch { return null; }
 }
 
-function writeStored(key: string, value: string) {
-  try { localStorage.setItem(key, value); } catch { /* Keep working when browser storage is unavailable. */ }
+export function writeStored(key: string, value: string) {
+  try { localStorage.setItem(key, value); } catch { /* Storage can be blocked; preferences then last for this visit only. */ }
 }
 
 function subscribeTo(event: string, callback: () => void) {
@@ -21,38 +22,33 @@ function subscribeTo(event: string, callback: () => void) {
   return () => window.removeEventListener(event, callback);
 }
 
+// The inline script in app/layout.tsx applies the theme before first paint,
+// so the DOM attribute is the source of truth.
 function getThemeSnapshot(): Theme {
-  return readStored("easyapply-theme") === "light" ? "light" : "dark";
+  return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
 }
 
-export function useDarkTheme(): [boolean, (dark: boolean) => void] {
-  const theme = useSyncExternalStore(
-    (callback) => subscribeTo(THEME_EVENT, callback),
-    getThemeSnapshot,
-    () => "dark" as Theme,
-  );
-  const setDark = useCallback((dark: boolean) => {
-    writeStored("easyapply-theme", dark ? "dark" : "light");
-    document.documentElement.dataset.theme = dark ? "dark" : "light";
+export function useTheme(): [Theme, (theme: Theme) => void] {
+  const theme = useSyncExternalStore((callback) => subscribeTo(THEME_EVENT, callback), getThemeSnapshot, () => "light" as Theme);
+  const setTheme = useCallback((next: Theme) => {
+    writeStored(THEME_KEY, next);
+    document.documentElement.dataset.theme = next;
     window.dispatchEvent(new Event(THEME_EVENT));
   }, []);
-  return [theme === "dark", setDark];
+  return [theme, setTheme];
 }
 
 function getLanguageSnapshot(): Language {
-  return readStored("easyapply-language") === "hi" ? "hi" : "en";
+  return readStored(LANGUAGE_KEY) === "hi" ? "hi" : "en";
 }
 
 export function useLanguagePreference(): [Language, (language: Language) => void] {
-  const language = useSyncExternalStore(
-    (callback) => subscribeTo(LANGUAGE_EVENT, callback),
-    getLanguageSnapshot,
-    () => "en" as Language,
-  );
+  const language = useSyncExternalStore((callback) => subscribeTo(LANGUAGE_EVENT, callback), getLanguageSnapshot, () => "en" as Language);
   const setLanguage = useCallback((next: Language) => {
-    writeStored("easyapply-language", next);
-    document.documentElement.lang = next === "hi" ? "hi" : "en";
+    writeStored(LANGUAGE_KEY, next);
+    document.documentElement.lang = next;
     window.dispatchEvent(new Event(LANGUAGE_EVENT));
   }, []);
   return [language, setLanguage];
 }
+
