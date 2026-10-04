@@ -28,9 +28,9 @@ export function AppHeader({ section, guard }: { section?: "image" | "pdf"; guard
     if (!guard) return;
     const onClick = (event: MouseEvent) => {
       const anchor = (event.target as HTMLElement | null)?.closest("a[href]") as HTMLAnchorElement | null;
-      if (!anchor || anchor.target === "_blank" || event.metaKey || event.ctrlKey || event.shiftKey) return;
+      if (!anchor || anchor.target === "_blank" || anchor.hasAttribute("download") || event.metaKey || event.ctrlKey || event.shiftKey) return;
       const url = new URL(anchor.href, window.location.href);
-      if (url.origin !== window.location.origin || url.pathname === window.location.pathname) return;
+      if (!/^https?:$/.test(url.protocol) || url.origin !== window.location.origin || url.pathname === window.location.pathname) return;
       if (!window.confirm(t("common.leaveWarning"))) {
         event.preventDefault();
         event.stopPropagation();

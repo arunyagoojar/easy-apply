@@ -1,12 +1,15 @@
+// Server-render checks against the production build (run `npm run build` first).
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import test from "node:test";
 
-async function render(pathname = "/") {
-  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
-  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
-  const { default: worker } = await import(workerUrl.href);
+const workerUrl = new URL("../dist/server/index.js", import.meta.url);
+const built = existsSync(workerUrl);
 
+async function render(pathname = "/") {
+  const url = new URL(workerUrl);
+  url.searchParams.set("test", `${process.pid}-${Date.now()}`);
+  const { default: worker } = await import(url.href);
   return worker.fetch(
     new Request(`http://localhost${pathname}`, { headers: { accept: "text/html" } }),
     { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } },
@@ -14,17 +17,19 @@ async function render(pathname = "/") {
   );
 }
 
-test("server-renders the finished EasyApply landing page", async () => {
-  const response = await render();
+const options = { skip: built ? false : "run `npm run build` first" };
+
+test("server-renders the tools page at /", options, async () => {
+  const response = await render("/");
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
-
   const html = await response.text();
-  assert.match(html, /<title>Free Passport Photo, Signature &amp; PDF Tools \| EasyApply<\/title>/i);
+  assert.match(html, /<title>Free Photo, Signature &amp; PDF Tools for Online Forms \| EasyApply<\/title>/i);
   assert.match(html, /<meta name="description"/i);
-  assert.match(html, /EasyApply/);
-  assert.match(html, /Prepare your documents/);
-
+  assert.match(html, /Get your documents ready for online forms/);
+  for (const href of ["/tools/passport-photo", "/tools/signature", "/tools/image", "/tools/images-to-pdf", "/tools/pdf", "/tools/compress-pdf", "/tools/sign-pdf", "/tools/edit-pdf"]) {
+    assert.match(html, new RegExp(`href="${href}"`), `links to ${href}`);
+  }
   const jsonLd = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/i);
   assert.ok(jsonLd);
   const structuredData = JSON.parse(jsonLd[1]);
@@ -32,87 +37,38 @@ test("server-renders the finished EasyApply landing page", async () => {
   assert.ok(Array.isArray(structuredData["@graph"]));
 });
 
-test("ships real crop selection and linked output controls", async () => {
-  const workspace = await readFile(new URL("../app/components/ToolWorkspace.tsx", import.meta.url), "utf8");
-  assert.match(workspace, /type CropRect/);
-  assert.match(workspace, /data-crop-handle/);
-  assert.match(workspace, /Free selection — any shape/);
-  assert.match(workspace, /Custom shape/);
-  assert.match(workspace, /Output dimensions always follow the crop selection/);
-  assert.doesNotMatch(workspace, /autoTrim|ratioLocked|detectSignatureBounds/);
+test("applies the saved or system theme before the first paint", options, async () => {
+  const html = await (await render("/")).text();
+  assert.match(html, /prefers-color-scheme: dark/);
+  assert.match(html, /easyapply-theme/);
 });
 
-test("keeps a separate device-local workspace for every tool", async () => {
-  const workspace = await readFile(new URL("../app/components/ToolWorkspace.tsx", import.meta.url), "utf8");
-  assert.match(workspace, /<ToolWorkspaceInner key=\{kind\} kind=\{kind\}/);
-  assert.match(workspace, /const WORKSPACE_DATABASE = "easyapply-workspaces"/);
-  assert.match(workspace, /indexedDB\.open\(WORKSPACE_DATABASE/);
-  assert.match(workspace, /easyapply-workspace-settings-v1-/);
-  assert.match(workspace, /inputs: files\.map/);
-  assert.match(workspace, /outputs: prepared\.map/);
-  assert.match(workspace, /deleteStoredWorkspace\(kind\)/);
-});
-
-test("uses purpose-specific default crop shapes", async () => {
-  const workspace = await readFile(new URL("../app/components/ToolWorkspace.tsx", import.meta.url), "utf8");
-  assert.match(workspace, /kind === "passport" \? "passport" : kind === "signature" \? "signature" : "free"/);
-  assert.match(workspace, /const defaultRatio = cropRatios\[defaultCropAspect\]/);
-  assert.match(workspace, /setCropAspect\(defaultCropAspect\)/);
-});
-
-test("guards numeric inputs against invalid values", async () => {
-  const workspace = await readFile(new URL("../app/components/ToolWorkspace.tsx", import.meta.url), "utf8");
-  assert.match(workspace, /function toSafeInteger/);
-  assert.match(workspace, /Number\.isFinite/);
-  assert.match(workspace, /changeWidth\(Number\(event\.target\.value\)\)/);
-});
-
-test("enforces the target file size for every raster format", async () => {
-  const workspace = await readFile(new URL("../app/components/ToolWorkspace.tsx", import.meta.url), "utf8");
-  assert.match(workspace, /gently step the size down until the file fits/);
-  assert.match(workspace, /Math\.sqrt\(target \/ blob\.size\)/);
-  assert.match(workspace, /supportsWebpEncoding/);
-  assert.match(workspace, /webp-unsupported/);
-});
-
-test("renders every tool workspace route", async () => {
+test("renders every tool route with its own title", options, async () => {
   const routes = [
-    ["/tools/passport-photo", /Passport Photo Resizer/i],
+    ["/tools/passport-photo", /Passport Photo Maker/i],
     ["/tools/signature", /Signature Resizer/i],
-    ["/tools/pdf", /PDF Toolkit/i],
-    ["/tools/image", /Image Resizer/i],
+    ["/tools/image", /Image Resizer &amp; Compressor/i],
+    ["/tools/increase-image-size", /Increase Image Size in KB/i],
+    ["/tools/pdf", /PDF Merger &amp; Organizer/i],
+    ["/tools/images-to-pdf", /Images to PDF Converter/i],
+    ["/tools/compress-pdf", /PDF Compressor/i],
+    ["/tools/increase-pdf-size", /Increase PDF Size in KB/i],
     ["/tools/sign-pdf", /PDF Signature Tool/i],
-    ["/tools/edit-pdf", /PDF Text Editor/i],
+    ["/tools/edit-pdf", /PDF Editor/i],
   ];
   for (const [pathname, title] of routes) {
     const response = await render(pathname);
     assert.equal(response.status, 200, `${pathname} should render`);
     const html = await response.text();
-    assert.match(html, title, `${pathname} should have its title`);
-    assert.match(html, /EasyApply/);
+    assert.match(html, new RegExp(`<title>[^<]*${title.source}`, "i"), `${pathname} title`);
+    assert.match(html, new RegExp(`<link rel="canonical" href="[^"]*${pathname}"`), `${pathname} canonical`);
   }
 });
 
-test("renders the tools directory page", async () => {
-  const response = await render("/tools");
-  assert.equal(response.status, 200);
-  const html = await response.text();
-  assert.match(html, /<title>All Tools/i);
-  assert.match(html, /tools\/passport-photo/);
-  assert.match(html, /tools\/signature/);
-  assert.match(html, /tools\/pdf/);
-  assert.match(html, /tools\/image/);
-});
-
-test("renders the privacy and FAQ workspace", async () => {
-  const response = await render("/privacy-faq");
-  assert.equal(response.status, 200);
-  const html = await response.text();
-  assert.match(html, /<title>Privacy &amp; Frequently Asked Questions/i);
-  assert.match(html, /Processed locally/);
-});
-
-test("redirects legacy privacy and faq routes to privacy-faq", async () => {
+test("sends the old directory and legacy pages to their new homes", options, async () => {
+  const tools = await render("/tools");
+  assert.ok([307, 308].includes(tools.status), "/tools redirects");
+  assert.match(tools.headers.get("location") ?? "", /^(https?:\/\/[^/]+)?\/$/);
   for (const pathname of ["/privacy", "/faq"]) {
     const response = await render(pathname);
     assert.ok([307, 308].includes(response.status), `${pathname} should redirect`);
@@ -120,16 +76,26 @@ test("redirects legacy privacy and faq routes to privacy-faq", async () => {
   }
 });
 
-test("publishes a sitemap covering every public page", async () => {
+test("renders the help and privacy page", options, async () => {
+  const response = await render("/privacy-faq");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /<title>Help &amp; Privacy \| EasyApply/i);
+  assert.match(html, /Processed on your device/);
+  assert.match(html, /github\.com\/arunyagoojar\/easy-apply/);
+});
+
+test("publishes a sitemap covering every public page", options, async () => {
   const response = await render("/sitemap.xml");
   assert.equal(response.status, 200);
   const xml = await response.text();
-  for (const path of ["/", "/tools", "/tools/passport-photo", "/tools/signature", "/tools/pdf", "/tools/image", "/tools/sign-pdf", "/tools/edit-pdf", "/privacy-faq"]) {
+  for (const path of ["/", "/tools/passport-photo", "/tools/signature", "/tools/image", "/tools/increase-image-size", "/tools/pdf", "/tools/images-to-pdf", "/tools/compress-pdf", "/tools/increase-pdf-size", "/tools/sign-pdf", "/tools/edit-pdf", "/privacy-faq"]) {
     assert.match(xml, new RegExp(`<loc>[^<]*${path.replace(/\//g, "\\/")}<\\/loc>`), `sitemap should include ${path}`);
   }
+  assert.doesNotMatch(xml, /\/tools<\/loc>/, "the redirect is not listed");
 });
 
-test("publishes robots.txt pointing at the sitemap", async () => {
+test("publishes robots.txt pointing at the sitemap", options, async () => {
   const response = await render("/robots.txt");
   assert.equal(response.status, 200);
   const body = await response.text();
@@ -137,7 +103,7 @@ test("publishes robots.txt pointing at the sitemap", async () => {
   assert.match(body, /Sitemap: .*sitemap\.xml/i);
 });
 
-test("serves the PWA manifest", async () => {
+test("serves the PWA manifest", options, async () => {
   const response = await render("/manifest.webmanifest");
   assert.equal(response.status, 200);
   const manifest = JSON.parse(await response.text());
@@ -145,7 +111,8 @@ test("serves the PWA manifest", async () => {
   assert.ok(Array.isArray(manifest.icons) && manifest.icons.length > 0);
 });
 
-test("returns a styled 404 for unknown routes", async () => {
+test("returns a 404 page for unknown routes", options, async () => {
   const response = await render("/this-route-does-not-exist");
   assert.equal(response.status, 404);
+  assert.match(await response.text(), /Page not found/);
 });

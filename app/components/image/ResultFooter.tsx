@@ -45,7 +45,7 @@ export function ResultFooter({ output, busy, settings, itemCount, exporting, onD
     else if (min && result.size < min) checks.push({ tone: "warn", text: `${sizeText} · ${t("image.result.underMin", { min: formatBytes(min) })}` });
     else if (max || min) checks.push({ tone: "ok", text: `${sizeText} · ${max ? t("image.result.maxOk", { max: formatBytes(max) }) : t("image.result.minOk", { min: formatBytes(min) })}` });
     else checks.push({ tone: "info", text: sizeText });
-    checks.push({ tone: "ok", text: `${formatName(result.format)}${result.format !== "webp" ? ` · ${t("image.result.dpi", { dpi: settings.dpi })}` : ""}` });
+    checks.push({ tone: "ok", text: `${formatName(result.format)}${result.dpi && result.format !== "webp" ? ` · ${t("image.result.dpi", { dpi: result.dpi })}` : ""}` });
   }
 
   const notes: string[] = [];
@@ -53,6 +53,7 @@ export function ResultFooter({ output, busy, settings, itemCount, exporting, onD
   if (result?.padded) notes.push(t("image.result.padded"));
   if (result?.scaledDown) notes.push(t("image.result.scaledDown", { w: result.width, h: result.height }));
   if (result?.webpFallback) notes.push(t("image.result.webpFallback"));
+  if (result?.format === "webp" && settings.minKb && result.size < settings.minKb * 1024) notes.push(t("image.result.webpNoPad"));
 
   const sheetItems = [
     { label: t("image.sheet4x6"), icon: <Printer size={16} />, onSelect: () => onSheet("4x6") },

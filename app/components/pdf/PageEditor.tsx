@@ -129,11 +129,14 @@ export function PageEditor({ pages, sources, getProxy, imagePageSize, startIndex
   // Put the caret in a text box as soon as it becomes editable.
   useEffect(() => {
     if (!editingId) return;
-    const field = pageRef.current?.querySelector<HTMLTextAreaElement>(`textarea[data-id="${editingId}"]`);
-    if (field && document.activeElement !== field) {
-      field.focus();
-      field.setSelectionRange(field.value.length, field.value.length);
-    }
+    const frame = requestAnimationFrame(() => {
+      const field = pageRef.current?.querySelector<HTMLTextAreaElement>(`textarea[data-id="${editingId}"]`);
+      if (field && document.activeElement !== field) {
+        field.focus();
+        field.setSelectionRange(field.value.length, field.value.length);
+      }
+    });
+    return () => cancelAnimationFrame(frame);
   }, [editingId]);
 
   /* ---------------------------------------------------------- editing */
@@ -249,6 +252,8 @@ export function PageEditor({ pages, sources, getProxy, imagePageSize, startIndex
       return;
     }
     if (tool && (tool !== "signature" && tool !== "image" || pending)) {
+      // Keeps the browser from moving focus away from the new text box.
+      event.preventDefault();
       place(at, tool);
       return;
     }
@@ -499,7 +504,6 @@ export function PageEditor({ pages, sources, getProxy, imagePageSize, startIndex
                       value={annotation.text}
                       placeholder={t("editor.newText")}
                       readOnly={editingId !== annotation.id}
-                      autoFocus={editingId === annotation.id}
                       aria-label={t("editor.textLabel")}
                       spellCheck={false}
                       rows={1}

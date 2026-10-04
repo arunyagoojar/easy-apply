@@ -372,8 +372,9 @@ function Workspace({ initialMode }: { initialMode: ImageMode }) {
     const result = output?.result;
     if (!result || !activeReady) return;
     try {
-      const widthMm = (result.width / settings.dpi) * 25.4;
-      const heightMm = (result.height / settings.dpi) * 25.4;
+      const dpi = result.dpi ?? settings.dpi;
+      const widthMm = (result.width / dpi) * 25.4;
+      const heightMm = (result.height / dpi) * 25.4;
       const name = baseName(activeReady.file.name);
       if (paper === "4x6") {
         const photo = bytesToBlob(result.page.bytes, result.page.format === "png" ? "image/png" : "image/jpeg");

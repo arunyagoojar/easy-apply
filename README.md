@@ -1,40 +1,64 @@
 # EasyApply
 
-Free, private document-preparation tools that run **entirely in your browser**.
-Prepare passport photos, signatures, image batches and PDFs for application
-portals — without ever uploading a file.
+Free, private tools for getting documents ready for online application forms.
+Photos, signatures and PDFs are processed **entirely in your browser**; nothing
+is uploaded.
 
 **Live site:** https://easyapply.eu.cc
 
-## Tools
+## What it does
 
-| Tool | What it does |
-| --- | --- |
-| **Passport Photo** (`/tools/passport-photo`) | Crop to 35:45 (or any custom ratio), resize to exact pixel dimensions, set a background and hit a target file size in KB. Includes on-device **background removal** (AI cut-out, downloaded on first use). |
-| **Signature** (`/tools/signature`) | Crop a signature with a wide 4:1 preset, adjust legibility and export as JPEG, PNG, WebP or PDF. |
-| **Image Toolkit** (`/tools/image`) | Batch resize, convert and adjust images with one set of settings; download everything as a ZIP. |
-| **PDF Toolkit** (`/tools/pdf`) | Merge, split and rotate with a **visual page picker** — real page thumbnails, drag-to-reorder, tick pages to include or skip. Also converts images into a PDF. |
-| **Sign PDF** (`/tools/sign-pdf`) | Place your signature on any page of a PDF, drag and resize it into position, export the signed document. |
-| **Edit PDF** (`/tools/edit-pdf`) | Simple text-PDF editing: cover anything with a box, retype names/dates/fixes in four standard fonts, position by drag. |
+The site opens straight on the tools page. Everything lives in two workspaces:
 
-### Privacy model
+### Image (`/tools/image`)
 
-- Every feature uses browser APIs (`canvas`, `pdf-lib`, `JSZip`) on the device.
-- There is no upload step, no account and no analytics on file contents.
-- Each tool keeps its own working files in IndexedDB and its settings in
-  `localStorage`, so you can close the tab and continue later. Removing files
-  (or using **Remove all**) clears that tool's workspace.
+Pick what you are preparing: **Photo**, **Signature** or **Any image**.
 
-### Features
+- Crop on the image with an aspect-locked box. Rotate, flip and straighten.
+  Each image in a batch keeps its own crop.
+- Exact output size in px, mm, cm or inches with a DPI (written into the file).
+  Presets: passport 35 × 45 mm, US 2 × 2 in, bank exams (IBPS/SBI), stamp size.
+- File-size range in KB: quality is tuned to stay **under the maximum**, and
+  files **below the minimum** are raised in quality, then padded with harmless
+  metadata. Fixed pixel dimensions are never changed to hit a size.
+- JPG, PNG, WebP or PDF output. Unchanged images are returned byte for byte.
+- Photo: on-device background removal and replacement, name & date caption,
+  face guide, print sheets (4 × 6 in JPG, A4 PDF).
+- Signature: adaptive clean-up (white paper, dark ink, works with shadows),
+  ink colour, transparent PNG.
+- Brightness, contrast, saturation and black & white (pixel-exact, works in Safari).
 
-- Direct-manipulation crop box (move, resize, aspect-locked handles) with
-  purpose-built presets per tool.
-- Output dimensions stay linked to the crop ratio; width/height inputs update
-  each other automatically.
-- Target file size: quality is tuned automatically for JPEG/WebP, and PNG (or
-  any format that cannot reach the target) is gently downscaled until it fits.
-- Bilingual UI (English / हिन्दी), dark and light themes, fully responsive.
-- Installable as a PWA (`manifest.ts`), SEO-ready metadata, sitemap and robots.
+Entry points: `/tools/passport-photo`, `/tools/signature`, `/tools/image`,
+`/tools/increase-image-size`.
+
+### PDF (`/tools/pdf`)
+
+- Add PDFs and images (phone photos are turned upright); every page shows as a
+  thumbnail.
+- Reorder by drag and drop (grip handle on touch screens, Alt + arrows on the
+  keyboard), rotate, delete with undo, select pages.
+- Click a page to **sign or fill it in**: drawn, typed or uploaded signatures,
+  text (any language), dates, ticks, crosses, white-out and images. Works on
+  rotated pages.
+- Download as one PDF, as single-page PDFs, or as JPG images.
+- File size: keep as is, **smaller file** (re-compresses photos inside, text stays
+  sharp), or **a size range** (e.g. 40–200 KB): too big is compressed, too
+  small is padded with XMP metadata so the pages are unchanged.
+- Password-protected PDFs open after asking for the password; their pages are
+  saved as images.
+
+Entry points: `/tools/pdf`, `/tools/images-to-pdf`, `/tools/compress-pdf`,
+`/tools/increase-pdf-size`, `/tools/sign-pdf`, `/tools/edit-pdf`.
+
+### Privacy
+
+- Files are kept in memory only, never in browser storage, and are gone when
+  the tab is closed. Only size and format preferences are remembered.
+- No upload step, no account, no analytics on file contents.
+- Background removal downloads its AI model (about 40 MB) from IMG.LY's CDN on
+  first use; the photo itself is never sent.
+
+English and Hindi, light and dark themes (follows the system), fully responsive.
 
 ## Development
 
@@ -42,31 +66,42 @@ Requires Node.js `>=22.13.0`.
 
 ```bash
 npm install
-npm run dev     # local development server
-npm run build   # verify the production build
-npm test        # build + render/route assertions
-npm run lint    # eslint
+npm run dev        # http://localhost:3000
+npm run build      # production build (copies pdf.js assets into public/pdfjs)
+npm test           # build + unit and server-render tests
+npm run test:unit  # byte, geometry and unit-conversion tests only
+npm run test:e2e   # Playwright end-to-end tests (uses the dev server)
+npm run lint
+npm run typecheck
 ```
 
-The site runs on [vinext](https://github.com/cloudflare/vinext) (Next.js-style
-App Router on Vite + Cloudflare Workers). `.openai/hosting.json` declares the
-optional Cloudflare D1/R2 bindings and `worker/index.ts` is the Worker entry
-point; the application itself is static and needs no database.
+The site runs on [vinext](https://github.com/cloudflare/vinext) (Next.js App
+Router on Vite and Cloudflare Workers). `worker/index.ts` is the Worker entry
+point; the app itself is static and needs no database.
 
 ## Project layout
 
 ```
 app/
-  page.tsx                 landing page
-  tools/page.tsx           tools directory
-  tools/{passport-photo,signature,image,pdf}/page.tsx
-  privacy-faq/page.tsx     privacy + FAQ workspace
+  page.tsx                     tools page (/)
+  tools/*/page.tsx             entry points for the two workspaces
+  privacy-faq/page.tsx         help & privacy
   components/
-    HomePage.tsx           landing hero
-    ToolWorkspace.tsx      shared tool workspace (crop, compress, export)
-    SiteHeader.tsx         marketing header
-    LanguageProvider.tsx   en/hi context
-  lib/site.ts              metadata helpers
-worker/index.ts            Cloudflare Worker entry
-tests/rendered-html.test.mjs   server-render + shape assertions
+    Hub.tsx, AppHeader.tsx, HelpPage.tsx, ui.tsx
+    image/                     image workspace (stage, settings, result)
+    pdf/                       PDF workspace (page grid, page editor, signatures)
+  lib/
+    bytes.ts                   JPEG/PNG DPI, padding, EXIF (pure, unit-tested)
+    geometry.ts                crop and page-rotation maths (pure, unit-tested)
+    image/                     decode, render, encode, presets, print sheets
+    pdf/                       pdf.js loading, export, compression, padding
+    messages.ts                all interface copy (English + Hindi)
+tests/                         node:test unit and server-render tests
+e2e/                           Playwright tests that check the downloaded files
 ```
+
+## Licences
+
+`@imgly/background-removal` (used for photo background removal) is licensed
+under the AGPL-3.0. The typed-signature fonts (Dancing Script, Great Vibes,
+Caveat) are under the SIL Open Font License.

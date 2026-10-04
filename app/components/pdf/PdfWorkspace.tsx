@@ -7,6 +7,7 @@ import { baseName, downloadBlob, errorMessage, isImageFile, isPdfFile, takeHandO
 import { decodeImage } from "../../lib/image/decode";
 import { bytesToBlob } from "../../lib/image/encode";
 import { rasterizeToFit, shrinkImages } from "../../lib/pdf/compress";
+import { padPdf } from "../../lib/pdf/pad";
 import { buildPdf, pdfToJpegs, splitPdf } from "../../lib/pdf/export";
 import { FILE_COLORS, imagePageSize as imagePageSizeOf, type Annotation, type Asset, type ImagePageSize, type PageItem, type SourceDoc } from "../../lib/pdf/model";
 import { forgetImage, renderPageView } from "../../lib/pdf/pageRender";
@@ -18,8 +19,8 @@ import { Dialog, Menu, NumberField, Segmented, Spinner, useFilePicker, useLeaveW
 import { PageEditor } from "./PageEditor";
 import { PageGrid, thumbKey } from "./PageGrid";
 
-export type PdfIntent = "organize" | "sign" | "edit" | "compress" | "images";
-type Compression = "none" | "balanced" | "target";
+export type PdfIntent = "organize" | "sign" | "edit" | "compress" | "increase" | "images";
+type Compression = "none" | "balanced" | "range";
 
 const ACCEPT = "application/pdf,.pdf,image/*,.heic,.heif";
 const THUMB_WIDTH = 220;
@@ -50,9 +51,10 @@ function Workspace({ intent }: { intent: PdfIntent }) {
   const [loading, setLoading] = useState(0);
   const [editor, setEditor] = useState<{ index: number; intent?: "sign" | "edit" } | null>(null);
   const [imagePageSize, setImagePageSize] = useState<ImagePageSize>("a4");
-  const [compression, setCompression] = useState<Compression>(intent === "compress" ? "balanced" : "none");
-  const [limitKb, setLimitKb] = useState<number | null>(500);
-  const [limitUnit, setLimitUnit] = useState<"KB" | "MB">("KB");
+  const [compression, setCompression] = useState<Compression>(intent === "compress" ? "balanced" : intent === "increase" ? "range" : "none");
+  const [minSize, setMinSize] = useState<number | null>(null);
+  const [maxSize, setMaxSize] = useState<number | null>(null);
+  const [sizeUnit, setSizeUnit] = useState<"KB" | "MB">("KB");
   const [busy, setBusy] = useState<{ label: string; progress?: number } | null>(null);
   const [result, setResult] = useState<{ name: string; size: number; original: number; notes: string[]; warn: boolean } | null>(null);
   const [password, setPassword] = useState<{ name: string; incorrect: boolean; resolve: (value: string | null) => void } | null>(null);
@@ -292,7 +294,9 @@ function Workspace({ intent }: { intent: PdfIntent }) {
   const originalSize = sourceList.reduce((total, source) => total + source.file.size, 0);
   const hasImages = sourceList.some((source) => source.kind === "image");
   const selectedPages = pages.filter((page) => selected.has(page.id));
-  const limitBytes = limitKb ? limitKb * (limitUnit === "MB" ? 1024 * 1024 : 1024) : null;
+  const unitBytes = sizeUnit === "MB" ? 1024 * 1024 : 1024;
+  const minBytes = compression === "range" && minSize ? Math.round(minSize * unitBytes) : null;
+  const maxBytes = compression === "range" && maxSize ? Math.round(maxSize * unitBytes) : null;
 
   const outputBase = () => {
     const used = [...new Set(pages.map((page) => page.sourceId))].map((id) => sources[id]).filter(Boolean);
@@ -316,16 +320,20 @@ function Workspace({ intent }: { intent: PdfIntent }) {
       let warn = false;
       const base = outputBase() + (scope === "selected" ? "-selection" : "");
       if (kind === "pdf") {
-        if (compression !== "none") {
+        if (compression === "balanced" || (maxBytes && bytes.length > maxBytes)) {
           setBusy({ label: t("pdf.compressing", { step: 1 }) });
           const smaller = await shrinkImages(bytes);
           if (smaller.length < bytes.length) bytes = smaller;
         }
-        if (compression === "target" && limitBytes && bytes.length > limitBytes) {
-          const fitted = await rasterizeToFit(bytes, limitBytes, (step) => setBusy({ label: t("pdf.compressing", { step: step + 1 }) }));
+        if (maxBytes && bytes.length > maxBytes) {
+          const fitted = await rasterizeToFit(bytes, maxBytes, (step) => setBusy({ label: t("pdf.compressing", { step: step + 1 }) }));
           if (fitted.bytes.length < bytes.length) bytes = fitted.bytes;
-          notes.push(fitted.fits ? t("pdf.result.rasterized") : t("pdf.result.cantFit", { limit: formatBytes(limitBytes), size: formatBytes(fitted.bytes.length) }));
+          notes.push(fitted.fits ? t("pdf.result.rasterized") : t("pdf.result.cantFit", { limit: formatBytes(maxBytes), size: formatBytes(fitted.bytes.length) }));
           warn = !fitted.fits;
+        }
+        if (minBytes && bytes.length < minBytes && (!maxBytes || minBytes <= maxBytes)) {
+          bytes = await padPdf(bytes, minBytes);
+          notes.push(t("pdf.result.padded"));
         }
         const name = `${base}.pdf`;
         downloadBlob(bytesToBlob(bytes, "application/pdf"), name);
@@ -352,7 +360,7 @@ function Workspace({ intent }: { intent: PdfIntent }) {
 
   /* ------------------------------------------------------------- render */
 
-  const emptyTitle = intent === "sign" ? t("pdf.empty.sign") : intent === "edit" ? t("pdf.empty.edit") : intent === "compress" ? t("pdf.empty.compress") : intent === "images" ? t("pdf.empty.images") : t("pdf.empty.title");
+  const emptyTitle = intent === "sign" ? t("pdf.empty.sign") : intent === "edit" ? t("pdf.empty.edit") : intent === "compress" ? t("pdf.empty.compress") : intent === "increase" ? t("pdf.empty.increase") : intent === "images" ? t("pdf.empty.images") : t("pdf.empty.title");
   const emptyBody = intent === "images" ? t("pdf.empty.imagesBody") : t("pdf.empty.body");
   const hasContent = pages.length > 0 || loading > 0;
 
@@ -390,7 +398,7 @@ function Workspace({ intent }: { intent: PdfIntent }) {
                     <button className="btn btn-sm btn-ghost" onClick={() => setEditor({ index: 0 })} disabled={!pages.length}>{t("pdf.edit")}</button>
                   </>
                 )}
-                {undoDelete ? <button className="btn btn-sm" onClick={restoreDeleted}><Undo2 size={15} />{t("common.undo")} · {t("pdf.deleted", { count: undoDelete.pages.length })}</button> : null}
+                {undoDelete ? <button className="btn btn-sm" onClick={restoreDeleted}><Undo2 size={15} />{t("common.undo")} · {undoDelete.pages.length === 1 ? t("pdf.deleted.one") : t("pdf.deleted.many", { count: undoDelete.pages.length })}</button> : null}
                 <span className="spacer" />
                 <span className="hint" style={{ maxWidth: 360 }}>{t("pdf.dragHint")}</span>
               </div>
@@ -421,12 +429,12 @@ function Workspace({ intent }: { intent: PdfIntent }) {
               <h3>{t("pdf.files")}{sourceList.length ? <button className="link-btn" style={{ fontSize: 12, textTransform: "none", letterSpacing: 0 }} onClick={removeEverything}>{t("pdf.startOver")}</button> : null}</h3>
               {sourceList.length ? (
                 <>
-                  <p className="hint" style={{ marginBottom: 10 }}>{sourceList.length > 1 ? t("pdf.summary", { pages: pages.length, files: sourceList.length }) : t("pdf.summaryOne", { pages: pages.length })} · {formatBytes(originalSize)}</p>
+                  <p className="hint" style={{ marginBottom: 10 }}>{sourceList.length > 1 ? t("pdf.summary", { pages: pages.length, files: sourceList.length }) : pages.length === 1 ? t("pdf.pages.one") : t("pdf.pages.many", { count: pages.length })} · {formatBytes(originalSize)}</p>
                   <ul className="file-legend">
                     {sourceList.map((source) => (
                       <li key={source.id}>
                         <span className="file-dot" style={{ background: source.color }} />
-                        <span title={source.name}>{source.name}</span>
+                        <span className="name" title={source.name}>{source.name}</span>
                         <small>{source.kind === "pdf" ? `${source.pageCount} p` : <FileImage size={13} />}</small>
                         <button className="icon-btn" style={{ width: 26, height: 26 }} onClick={() => removeSource(source.id)} aria-label={t("pdf.removeFile", { name: source.name })} title={t("pdf.removeFile", { name: source.name })}><X size={14} /></button>
                       </li>
@@ -454,20 +462,28 @@ function Workspace({ intent }: { intent: PdfIntent }) {
                 {([
                   ["none", t("pdf.compression.none"), t("pdf.compression.noneHint")],
                   ["balanced", t("pdf.compression.balanced"), t("pdf.compression.balancedHint")],
-                  ["target", t("pdf.compression.target"), t("pdf.compression.targetHint")],
+                  ["range", t("pdf.compression.target"), t("pdf.compression.targetHint")],
                 ] as Array<[Compression, string, string]>).map(([value, label, hint]) => (
                   <div key={value} className="radio-card" role="radio" tabIndex={0} aria-checked={compression === value} onClick={() => { setCompression(value); setResult(null); }} onKeyDown={(event) => { if (event.key === " " || event.key === "Enter") { event.preventDefault(); setCompression(value); } }}>
                     <span className="dot" />
                     <span style={{ flex: 1 }}>
                       <b>{label}</b>
                       <small>{hint}</small>
-                      {value === "target" && compression === "target" ? (
-                        <span className="input-group" style={{ marginTop: 8, maxWidth: 200 }} onClick={(event) => event.stopPropagation()}>
-                          <NumberField value={limitKb} onChange={(next) => { setLimitKb(next); setResult(null); }} min={1} max={100000} allowEmpty ariaLabel={t("pdf.compression.limit")} />
-                          <select className="suffix" value={limitUnit} onChange={(event) => setLimitUnit(event.target.value as "KB" | "MB")} aria-label="Unit">
-                            <option>KB</option>
-                            <option>MB</option>
-                          </select>
+                      {value === "range" && compression === "range" ? (
+                        <span className="dims" style={{ marginTop: 10, gridTemplateColumns: "1fr auto 1fr auto" }} onClick={(event) => event.stopPropagation()}>
+                          <span className="input-group">
+                            <NumberField value={minSize} onChange={(next) => { setMinSize(next); setResult(null); }} min={0.1} max={100000} decimals={sizeUnit === "MB" ? 2 : 0} allowEmpty placeholder={t("image.kb.min")} ariaLabel={`${t("image.kb.min")} ${sizeUnit}`} />
+                          </span>
+                          <span className="times">–</span>
+                          <span className="input-group">
+                            <NumberField value={maxSize} onChange={(next) => { setMaxSize(next); setResult(null); }} min={0.1} max={100000} decimals={sizeUnit === "MB" ? 2 : 0} allowEmpty placeholder={t("image.kb.max")} ariaLabel={`${t("image.kb.max")} ${sizeUnit}`} />
+                          </span>
+                          <span className="input-group" style={{ width: 62 }}>
+                            <select className="suffix" style={{ width: "100%", borderLeft: 0 }} value={sizeUnit} onChange={(event) => setSizeUnit(event.target.value as "KB" | "MB")} aria-label="Unit">
+                              <option>KB</option>
+                              <option>MB</option>
+                            </select>
+                          </span>
                         </span>
                       ) : null}
                     </span>
@@ -503,9 +519,9 @@ function Workspace({ intent }: { intent: PdfIntent }) {
                   icon={<Ellipsis size={18} />}
                   buttonClassName="btn btn-lg"
                   items={[
-                    ...(selectedPages.length ? [{ label: t("pdf.downloadSelected"), hint: t("pdf.scopeSelected", { count: selectedPages.length }), icon: <Download size={16} />, onSelect: () => run("pdf", "selected"), disabled: !!busy }] : []),
-                    { label: t("pdf.split"), hint: selectedPages.length ? t("pdf.scopeSelected", { count: selectedPages.length }) : t("pdf.splitHint"), icon: <Scissors size={16} />, onSelect: () => run("split", selectedPages.length ? "selected" : "all"), disabled: !pages.length || !!busy },
-                    { label: t("pdf.toJpg"), hint: selectedPages.length ? t("pdf.scopeSelected", { count: selectedPages.length }) : t("pdf.toJpgHint"), icon: <FileArchive size={16} />, onSelect: () => run("jpg", selectedPages.length ? "selected" : "all"), disabled: !pages.length || !!busy },
+                    ...(selectedPages.length ? [{ label: t("pdf.downloadSelected"), hint: t("pdf.scopeSelected", { count: selectedPages.length }), icon: <Download size={16} />, onSelect: () => run("pdf", "selected"), disabled: !!busy || loading > 0 }] : []),
+                    { label: t("pdf.split"), hint: selectedPages.length ? t("pdf.scopeSelected", { count: selectedPages.length }) : t("pdf.splitHint"), icon: <Scissors size={16} />, onSelect: () => run("split", selectedPages.length ? "selected" : "all"), disabled: !pages.length || !!busy || loading > 0 },
+                    { label: t("pdf.toJpg"), hint: selectedPages.length ? t("pdf.scopeSelected", { count: selectedPages.length }) : t("pdf.toJpgHint"), icon: <FileArchive size={16} />, onSelect: () => run("jpg", selectedPages.length ? "selected" : "all"), disabled: !pages.length || !!busy || loading > 0 },
                   ]}
                 />
               </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { isJpeg, isPng, padJpeg, padPng } from "../bytes";
 import { baseName } from "../files";
 import { bytesToBlob, encodeCanvas, imagesToPdf, type Encoded, type PdfPage, type RasterFormat } from "./encode";
 import { releaseCanvas, renderImage, workingSize, type Look, type Source } from "./render";
@@ -38,6 +39,8 @@ export type Produced = {
   scaledDown: boolean;
   resizedForSize: boolean;
   webpFallback: boolean;
+  /** DPI written into the file, or null when none was set. */
+  dpi: number | null;
   /** The encoded image inside a PDF, kept for print sheets and combined PDFs. */
   page: PdfPage;
 };
@@ -60,7 +63,50 @@ export function lookFor(settings: ImageSettings, mode: ImageMode, raster: Raster
   };
 }
 
+/**
+ * "Any image" with nothing to change: hand back the original bytes (padded
+ * when a minimum size is set) instead of re-encoding, which would only add
+ * generation loss and often make the file bigger.
+ */
+async function passthrough(input: ProduceInput): Promise<Produced | null> {
+  const { file, source, edits, settings, mode } = input;
+  if (mode !== "any" || input.cutout) return null;
+  if (settings.sizeMode !== "original" && !(settings.sizeMode === "scale" && settings.scale === 100)) return null;
+  const { crop } = edits;
+  if (edits.rotate || edits.flip || edits.straighten || crop.x > 0.0005 || crop.y > 0.0005 || crop.w < 0.9995 || crop.h < 0.9995) return null;
+  if (settings.brightness !== 100 || settings.contrast !== 100 || settings.saturation !== 100 || settings.grayscale) return null;
+  if (settings.maxKb && file.size > settings.maxKb * 1024) return null;
+  let bytes: Uint8Array = new Uint8Array(await file.arrayBuffer());
+  const kind = isJpeg(bytes) ? "jpeg" : isPng(bytes) ? "png" : null;
+  if (!kind || resolveFormat(settings, file, mode) !== kind) return null;
+  let padded = false;
+  if (settings.minKb && bytes.length < settings.minKb * 1024) {
+    const target = Math.min(Math.round(settings.minKb * 1024), settings.maxKb ? Math.round(settings.maxKb * 1024) : Infinity);
+    bytes = kind === "jpeg" ? padJpeg(bytes, target) : padPng(bytes, target);
+    padded = true;
+  }
+  return {
+    blob: bytesToBlob(bytes, `image/${kind}`),
+    name: `${baseName(file.name)}-${source.width}x${source.height}.${extensionFor(kind)}`,
+    format: kind,
+    raster: kind,
+    width: source.width,
+    height: source.height,
+    size: bytes.length,
+    quality: null,
+    padded,
+    overMax: false,
+    scaledDown: false,
+    resizedForSize: false,
+    webpFallback: false,
+    dpi: null,
+    page: { bytes, format: kind, width: source.width, height: source.height, dpi: 96 },
+  };
+}
+
 export async function produceImage(input: ProduceInput): Promise<Produced> {
+  const unchanged = await passthrough(input);
+  if (unchanged) return unchanged;
   const { file, source, edits, settings, mode } = input;
   const working = workingSize(source, edits);
   const region = { x: edits.crop.x * working.width, y: edits.crop.y * working.height, w: edits.crop.w * working.width, h: edits.crop.h * working.height };
@@ -71,7 +117,9 @@ export async function produceImage(input: ProduceInput): Promise<Produced> {
   const look = lookFor(settings, mode, raster);
   const background = mode === "photo" && input.cutout ? backgroundColor(settings) : null;
   const caption = mode === "photo" && settings.caption ? { name: settings.captionName, date: settings.captionDate } : null;
-  const dpi = settings.dpi;
+  // DPI only means something for physical sizes (photos, signatures, cm/mm/in).
+  const dpi = mode !== "any" || (settings.sizeMode === "exact" && settings.unit !== "px") ? settings.dpi : null;
+  const pageDpi = dpi ?? 96;
 
   const maxBytes = settings.maxKb ? Math.round(settings.maxKb * 1024) : null;
   const minBytes = settings.minKb ? Math.round(settings.minKb * 1024) : null;
@@ -106,7 +154,7 @@ export async function produceImage(input: ProduceInput): Promise<Produced> {
   };
 
   let attempt = await encodeWithin(format === "pdf" && maxBytes ? Math.max(1024, maxBytes - PDF_OVERHEAD) : maxBytes);
-  const page: PdfPage = { bytes: attempt.encoded.bytes, format: attempt.encoded.format === "png" ? "png" : "jpeg", width: attempt.width, height: attempt.height, dpi };
+  const page: PdfPage = { bytes: attempt.encoded.bytes, format: attempt.encoded.format === "png" ? "png" : "jpeg", width: attempt.width, height: attempt.height, dpi: pageDpi };
   let blob: Blob;
   let bytesLength: number;
   let overMax = attempt.encoded.overMax;
@@ -146,6 +194,7 @@ export async function produceImage(input: ProduceInput): Promise<Produced> {
     scaledDown: size.scaledDown,
     resizedForSize: attempt.resizedForSize,
     webpFallback: attempt.encoded.webpFallback,
+    dpi,
     page,
   };
 }

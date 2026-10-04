@@ -138,7 +138,7 @@ export function PageGrid({ pages, sources, thumbs, selected, imagePageSize, load
             data-page-id={page.id}
             tabIndex={0}
             role="group"
-            aria-label={`${t("pdf.selectPage", { n: index + 1 })}`}
+            aria-label={t("editor.page", { n: index + 1, total: pages.length })}
             onPointerDown={(event) => startPress(event, page.id, false)}
             onClick={(event) => {
               if (suppressClick.current || (event.target as HTMLElement).closest("button")) return;
@@ -171,11 +171,11 @@ export function PageGrid({ pages, sources, thumbs, selected, imagePageSize, load
             <span className="page-label">
               <span className="file-dot" style={{ background: source?.color }} aria-hidden="true" />
               <b>{index + 1}</b>
-              <span title={source?.name}>{source?.name}</span>
+              <span className="name" title={source?.name}>{source?.name}</span>
               <span
                 className="grip"
                 aria-hidden="true"
-                style={{ marginLeft: "auto", display: "inline-grid", placeItems: "center", touchAction: "none", cursor: "grab", color: "var(--text-3)" }}
+                style={{ flex: "none", display: "inline-grid", placeItems: "center", touchAction: "none", cursor: "grab", color: "var(--text-3)" }}
                 onPointerDown={(event) => startPress(event, page.id, true)}
               >
                 <GripVertical size={15} />
