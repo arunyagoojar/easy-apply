@@ -1,10 +1,5 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowRight, EyeOff, HardDrive, Lock, ShieldCheck, Trash2, WifiOff } from "lucide-react";
-import { SiteHeader } from "../components/SiteHeader";
-import { createPageMetadata } from "../lib/site";
-export const metadata: Metadata = createPageMetadata({ title: "Private Local File Processing", description: "See how EasyApply prepares photos, signatures and PDFs locally without uploading or storing your files.", path: "/privacy-faq", noIndex: true });
+import { redirect } from "next/navigation";
+
 export default function PrivacyPage() {
-  const points = [[WifiOff, "No file uploads", "Your photos, signatures and PDFs are opened by the browser on this device. They are never sent to an EasyApply server."], [HardDrive, "Local processing", "Cropping, resizing, compression and PDF changes happen with browser APIs and client-side libraries."], [EyeOff, "No document tracking", "EasyApply does not inspect, analyse or create a cloud record of the files you process."], [Trash2, "Temporary by default", "Working files live in the current tab. Close it when you are done to clear the session."]];
-  return <div className="site-shell"><SiteHeader /><main className="info-page container"><div className="info-hero"><span className="info-hero-icon"><Lock size={30} /></span><span className="section-kicker">EasyApply privacy</span><h1>Your documents stay with you.</h1><p>EasyApply is designed as a frontend-only toolkit. There is no upload step, account or cloud storage between you and your prepared file.</p><Link className="button button-primary" href="/tools">Choose a tool <ArrowRight size={16} /></Link></div><div className="info-grid">{points.map(([Icon, title, text]) => { const PointIcon = Icon as typeof ShieldCheck; return <article key={title as string}><PointIcon size={22} /><h2>{title as string}</h2><p>{text as string}</p></article>; })}</div><section className="plain-language-card"><ShieldCheck size={26} /><div><h2>In plain language</h2><p>Your browser reads the file, EasyApply changes it locally, and your browser downloads the result. The original and prepared file do not need to travel across the internet.</p></div></section></main></div>;
+  redirect("/privacy-faq");
 }

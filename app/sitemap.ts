@@ -3,10 +3,14 @@ import { siteUrl } from "./lib/site";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const pages = [
+    ["/", "weekly", 1],
+    ["/tools", "monthly", 0.9],
     ["/tools/passport-photo", "monthly", 0.9],
     ["/tools/signature", "monthly", 0.9],
     ["/tools/pdf", "monthly", 0.9],
     ["/tools/image", "monthly", 0.9],
+    ["/tools/sign-pdf", "monthly", 0.9],
+    ["/tools/edit-pdf", "monthly", 0.9],
     ["/privacy-faq", "monthly", 0.6],
   ] as const;
 

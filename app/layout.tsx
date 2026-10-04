@@ -88,7 +88,7 @@ export default function RootLayout({
         browserRequirements: "Requires a modern browser with JavaScript enabled",
         isAccessibleForFree: true,
         offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
-        featureList: ["Passport photo resizing", "Signature preparation", "PDF merge and split", "Image conversion and compression", "Local browser processing"],
+        featureList: ["Passport photo resizing", "Signature preparation", "Background removal", "PDF merge, split, rotate and page reorder", "Sign PDFs", "Edit text PDFs", "Image conversion and compression", "Local browser processing"],
       },
     ],
   };

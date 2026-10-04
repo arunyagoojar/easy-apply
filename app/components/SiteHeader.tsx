@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Check, ChevronDown, FileImage, FileSignature, Files, Image as ImageIcon, Languages, Menu, Moon, Sun, X } from "lucide-react";
+import { Check, FileImage, FileSignature, Files, Image as ImageIcon, Languages, Menu, Moon, Sun, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useDarkTheme } from "../lib/preferences";
 import { useLanguage } from "./LanguageProvider";
 
 export function BrandMark() {
@@ -16,26 +17,35 @@ export function BrandMark() {
 }
 
 export function SiteHeader({ onPrivacyFaq }: { onPrivacyFaq?: () => void }) {
-  const [dark, setDark] = useState(true);
+  const [dark, setDark] = useDarkTheme();
   const [open, setOpen] = useState(false);
   const [languageOpen, setLanguageOpen] = useState(false);
   const { language, setLanguage } = useLanguage();
 
   useEffect(() => {
-    const saved = localStorage.getItem("easyapply-theme");
-    const next = saved !== "light";
-    setDark(next);
-    document.documentElement.dataset.theme = next ? "dark" : "light";
-  }, []);
+    if (!open) return;
+    const close = (event: MouseEvent) => {
+      if (!(event.target as HTMLElement).closest(".route-mobile-menu, .menu-button")) setOpen(false);
+    };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [open]);
 
-  const toggleTheme = () => {
-    const next = !dark;
-    setDark(next);
-    document.documentElement.dataset.theme = next ? "dark" : "light";
-    localStorage.setItem("easyapply-theme", next ? "dark" : "light");
-  };
+  useEffect(() => {
+    if (!languageOpen) return;
+    const close = (event: MouseEvent) => {
+      if (!(event.target as HTMLElement).closest(".language-menu-wrap")) setLanguageOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setLanguageOpen(false); };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", escape); };
+  }, [languageOpen]);
+
+  const toggleTheme = () => setDark(!dark);
 
   const links = [
+    { href: "/tools", label: language === "hi" ? "सभी टूल" : "All tools" },
     { href: "/tools/passport-photo", label: language === "hi" ? "पासपोर्ट फोटो" : "Passport photo", icon: FileImage },
     { href: "/tools/signature", label: language === "hi" ? "हस्ताक्षर" : "Signature", icon: FileSignature },
     { href: "/tools/pdf", label: language === "hi" ? "PDF टूलकिट" : "PDF toolkit", icon: Files },
